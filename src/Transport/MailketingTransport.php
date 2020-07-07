@@ -12,11 +12,11 @@ use Swift_MimePart;
 
 class MailketingTransport extends Transport
 {
-    
+
 
     const SMTP_API_NAME = 'mailketingapi';
     const MAXIMUM_FILE_SIZE = 20480000;
-    const BASE_URL = 'https://app.mailketing.co.id/v2/send';
+    const BASE_URL = 'https://app.mailketing.co.id/api/v2/send';
 
     /**
      * @var Client
@@ -39,28 +39,27 @@ class MailketingTransport extends Transport
      */
     public function send(Swift_Mime_SimpleMessage $message,&$failedRecipients = null)
     {
-        
+
         $content = [
-            'from_name'    => (!empty($message['from']['name'])) ? $message['from']['name'] : $message['from']['email'],
-            'from_email'    => $message['from']['email'],
             'subject'          => $message->getSubject(),
         ];
-	        
-          $recipients = [];
-        foreach ($message['recipients']['to'] as $to) {
-            $recipient = [
-                'address'           => $to,
-                'substitution_data' => [],
-                'metadata'          => [],
-            ];
-            }
-	
+        if ($message->getFrom()) {
+             foreach ($message->getFrom() as $email => $name) {
+                 $content['from_name']=$name;
+                 $content['from_email']=$email;
+             }
+         }
+
+         if($message->getTo()){
+               $x = $this->getTo($message);
+       }
+
         if ($contents = $this->getContents($message)) {
             $content['html'] = $contents;
         }
         $mailketingMessage = [
             'content'    => $content,
-            'recipients' => $recipients,
+            'recipients' => $x,
         ];
 
         $attachments = $this->getAttachments($message);
@@ -68,44 +67,59 @@ class MailketingTransport extends Transport
             $$mailketingMessage['content']['attachments'] = $attachments;
         }
         $mailketingMessage['api_token']=$this->apiKey;
-
-       $data = $this->setParameters($message, $mailketingMessage);
-        
-        $payload = [
-            'headers' => [
-                'Content-Type' => 'application/json',
-		'user-agent'   => 'mailketing-laravel v1',
-            ],
-            'json' => $data,
-        ];
-
-        $response = $this->post($payload);
-
-        return $response;
+        print_r($mailketingMessage);
+        $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL,"https://app.mailketing.id/api/v2/send");
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($mailketingMessage));
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                $output = curl_exec ($ch);
+                print_r($output);
+                curl_close ($ch);
     }
 
     /**
      * @param Swift_Mime_SimpleMessage $message
      * @return array
      */
-    private function getPersonalizations(Swift_Mime_SimpleMessage $message)
-    {
-        $setter = function (array $addresses) {
-            $recipients = [];
-            foreach ($addresses as $email => $name) {
-                $address = [];
-                $address['email'] = $email;
-                if ($name) {
-                    $address['name'] = $name;
-                }
-                $recipients[] = $address;
-            }
-            return $recipients;
-        };
-	$personalization= $this->getTo($message);
-		
-        return $personalization;
+     private function getPersonalizations(Swift_Mime_SimpleMessage $message)
+     {
+         $setter = function (array $addresses) {
+             $recipients = [];
+             foreach ($addresses as $email => $name) {
+               $recipients = [
+                                        'address'   => ['email' => $email],
+                                    ];
+             }
+             return $recipients;
+         };
+ 	$personalization= $this->getTo($message);
+
+         return $personalization;
+     }
+
+
+      /**
+      * Get From Addresses.
+      *
+      * @param Swift_Mime_SimpleMessage $message
+      * @return array
+      */
+     private function getTo(Swift_Mime_SimpleMessage $message)
+     {
+
+ 	$this->numberOfRecipients=0;
+         if ($message->getTo()) {
+ 	    $recipient = [];
+             foreach ($message->getTo() as $email => $name) {
+ 		$recipient = [
+                            'address'   => ['email' => $email],
+                        ];
+         	}
+
     }
+         return $recipient;
+ }
 
 
      /**
@@ -114,7 +128,7 @@ class MailketingTransport extends Transport
      * @param Swift_Mime_SimpleMessage $message
      * @return array
      */
-   
+
       /**
      * Get From Addresses.
      *
@@ -131,7 +145,7 @@ class MailketingTransport extends Transport
         }
         return $ccarray;
     }
-    
+
     /**
      * Get From Addresses.
      *
@@ -150,7 +164,7 @@ class MailketingTransport extends Transport
     }
 
 
-  
+
 
     /**
      * Get ReplyTo Addresses.
@@ -187,7 +201,7 @@ class MailketingTransport extends Transport
     {
        $attachments = [];
        foreach ($message->getChildren() as $attachment) {
-        $attachment = $message->getChildren();   
+        $attachment = $message->getChildren();
 	 if ((!$attachment instanceof Swift_Attachment && !$attachment instanceof Swift_Image)
 		|| $attachment->getFilename() === self::SMTP_API_NAME
                 || !strlen($attachment->getBody()) > self::MAXIMUM_FILE_SIZE
@@ -231,8 +245,8 @@ class MailketingTransport extends Transport
 		    continue 2;
 		case 'templateId':
 		    array_set($data,'templateId',$val);
-		    continue 2;	
-                case 'personalizations':		     
+		    continue 2;
+                case 'personalizations':
                     $this->setPersonalizations($data, $val);
                     continue 2;
 
@@ -240,7 +254,7 @@ class MailketingTransport extends Transport
                     $val = array_merge($this->attachments, $val);
                     break;
                     }
-                   
+
 
            array_set($data, $key, $val);
         }
@@ -251,17 +265,17 @@ class MailketingTransport extends Transport
     {
 
         foreach ($personalizations as $index => $params) {
-	    	
+
 	    if($this->numberOfRecipients <= 0)
 	    {
 		array_set($data,'personalizations'.'.'.$index  , $params);
 		continue;
-	    } 
+	    }
 	    $count=0;
 	    while($count<$this->numberOfRecipients)
 	    {
                 if (in_array($params, ['attributes','x-apiheader','x-apiheader_cc'])&& !in_array($params, ['recipient','recipient_cc'])) {
-		      array_set($data, 'personalizations.'.$count . '.' . $index  , $params);	
+		      array_set($data, 'personalizations.'.$count . '.' . $index  , $params);
                 } else {
 			array_set($data, 'personalizations.'.$count . '.' . $index  , $params);
                 }
@@ -273,7 +287,7 @@ class MailketingTransport extends Transport
     private function setSettings(&$data, $settings)
     {
         foreach ($settings as $index => $params) {
-        	array_set($data,'settings.'.$index,$params);   
+        	array_set($data,'settings.'.$index,$params);
 	}
     }
 
