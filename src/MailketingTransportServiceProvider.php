@@ -23,8 +23,8 @@ class MailketingTransportServiceProvider extends ServiceProvider
 
     public function extendTransportManager(TransportManager $manager)
     {
-        $manager->extend('pepipost', function() {
-            $config = $this->app['config']->get('services.pepipost', array());
+        $manager->extend('mailketing', function() {
+            $config = $this->app['config']->get('services.mailketing', array());
             $client = new HttpClient(Arr::get($config, 'guzzle', []));
             $endpoint = isset($config['endpoint']) ? $config['endpoint'] : null;
 
