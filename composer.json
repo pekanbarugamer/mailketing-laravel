@@ -1,0 +1,35 @@
+{
+    "name": "mailketing/mailketing-laravel",
+    "description": "This library adds a 'mailketing' mail driver to Laravel.",
+    "keywords": ["laravel", "mailketing","laravel mail driver"],
+    "license": "MIT",
+    "require": {
+        "illuminate/mail": "~5.5",
+        "guzzlehttp/guzzle": "~5.3|~6.2"
+    },
+    "require-dev": {
+        "illuminate/container": "~5.5",
+        "illuminate/filesystem": "~5.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Mailketing\\MailketingLaravelDriver\\": "src"
+        }
+    },
+    "authors": [
+        {
+            "name": "Fadli Dzil Ikram",
+            "email": "fadli@mailketing.co.id"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/pekanbarugamer/mailketing-laravel/issues"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Mailketing\\MailketingLaravelDriver\\MailketingTransportServiceProvider"
+            ]
+        }
+    }
+}
